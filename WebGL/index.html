@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+    <title>3D Archery War Master</title>
+    <link rel="icon" type="image/png" href="TemplateData/favicon.png">
+    <link rel="preload" href="TemplateData/bg.jpg" as="image">
+    <link rel="stylesheet" href="TemplateData/style.css">
+  </head>
+  <body>
+    <div id="page-bg"></div>
+    <!-- The game's UI and cameras are built for portrait (720x1558 reference), so on desktop it plays in a
+         centered 9:16 box over a blurred copy of the game art. Phones/tablets fill the screen instead.
+         Docs/WebGL_Build_Plan.md, Phase 5. Based on the smash-fest-awd Base_Web-GL template. -->
+    <div id="game-frame">
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
+      <div id="loading">
+        <img id="loading-logo" src="TemplateData/logo.png" alt="">
+        <div id="loading-text">Loading 0%</div>
+        <div id="loading-bar"><div id="loading-fill"></div></div>
+      </div>
+      <div id="banner"></div>
+    </div>
+    <div id="controls-hint">
+      <b>Mouse</b>: drag to aim, release to shoot, drag to steer<br>
+      <b>Keys</b>: hold SPACE + ARROWS to aim, release to shoot, ARROWS to steer<br>
+      ENTER: play / continue &nbsp; M: mute
+    </div>
+    <button id="fullscreen-button" title="Fullscreen" aria-label="Fullscreen">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 4h6v2H6v4H4V4zm10 0h6v6h-2V6h-4V4zM4 14h2v4h4v2H4v-6zm14 0h2v6h-6v-2h4v-4z"/></svg>
+    </button>
+
+    <script>
+      var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (isMobile) document.body.classList.add('mobile');
+
+      var canvas = document.querySelector('#unity-canvas');
+
+      function showBanner(msg, type) {
+        var banner = document.querySelector('#banner');
+        var div = document.createElement('div');
+        div.className = 'banner-' + (type || 'info');
+        div.textContent = msg;
+        banner.appendChild(div);
+        if (type !== 'error') setTimeout(function () { banner.removeChild(div); }, 5000);
+      }
+
+      var config = {
+        arguments: [],
+        dataUrl: "Build/WebGL.data.br",
+        frameworkUrl: "Build/WebGL.framework.js.br",
+        codeUrl: "Build/WebGL.wasm.br",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "TopNation Studio",
+        productName: "3D Archery War Master",
+        productVersion: "1.0",
+        showBanner: showBanner,
+        // Saves are written to IndexedDB automatically (no manual FS sync, no deprecation warning).
+        autoSyncPersistentDataPath: true,
+        // Cap the render resolution on high-DPI screens: large GPU saving, hardly visible.
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, isMobile ? 2 : 1.5),
+      };
+
+      // Keyboard controls (Space / Arrows / WASD / Enter / M) go to the canvas: keep it focused.
+      function focusCanvas() { if (document.activeElement !== canvas) canvas.focus({ preventScroll: true }); }
+      document.addEventListener('pointerdown', focusCanvas);
+      // Space and the arrow keys must never scroll the page.
+      window.addEventListener('keydown', function (e) {
+        if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.key) >= 0 && e.target === document.body) e.preventDefault();
+      });
+      // No browser context menu over the game (right click while aiming).
+      canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+      // Fullscreen the whole page (not only the canvas) so the 9:16 box and its side art are kept.
+      var fsButton = document.querySelector('#fullscreen-button');
+      if (!document.fullscreenEnabled) fsButton.style.display = 'none';
+      fsButton.addEventListener('click', function () {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen().catch(function () {});
+        focusCanvas();
+      });
+
+      var loading = document.querySelector('#loading');
+      var fill = document.querySelector('#loading-fill');
+      var text = document.querySelector('#loading-text');
+
+      var script = document.createElement('script');
+      script.src = "Build/WebGL.loader.js";
+      script.onload = function () {
+        createUnityInstance(canvas, config, function (progress) {
+          var pct = Math.round(100 * progress);
+          fill.style.width = pct + '%';
+          text.textContent = pct < 90 ? 'Loading ' + pct + '%' : 'Starting...';
+        }).then(function (unityInstance) {
+          window.unityInstance = unityInstance;
+          loading.classList.add('done');
+          setTimeout(function () { loading.style.display = 'none'; }, 400);
+          focusCanvas();
+        }).catch(function (message) {
+          showBanner(String(message), 'error');
+        });
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
